@@ -81,45 +81,52 @@
             padding: 10px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 0.88rem;
         }
 
+        /* 與 nav 相同：固定每排 6 個 */
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 16px; margin-bottom: 40px;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 14px; margin-bottom: 40px;
         }
         @media (max-width: 768px) {
-            .grid-container { grid-template-columns: 1fr; }
+            .grid-container { grid-template-columns: repeat(3, minmax(0, 1fr)); }
             .search-input { width: 100%; }
         }
 
+        .row-header {
+            grid-column: 1 / -1; color: #ff9800; font-weight: 600; font-size: 0.85rem;
+            border-bottom: 1px dashed #444; padding: 6px 2px 4px; margin-top: 6px;
+        }
+        .row-header:first-child { margin-top: 0; }
+
         .item-card {
             background-color: var(--card-bg); border: 1px solid var(--card-border);
-            border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+            border-radius: 8px; padding: 12px 8px; display: flex; flex-direction: column;
+            align-items: center; gap: 8px; text-align: center; min-width: 0;
             transition: transform 0.15s, border-color 0.15s, opacity 0.15s, box-shadow 0.15s;
             cursor: grab;
         }
+        .item-card.no-drag { cursor: default; }
         .item-card:hover { border-color: #555; }
         .item-card.dragging { opacity: 0.35; border: 2px dashed var(--primary); transform: scale(0.98); }
         .item-card.drag-over {
             border: 2px solid var(--accent); box-shadow: 0 0 14px rgba(76,175,80,0.45); transform: translateY(-3px);
         }
-        .item-card.sep {
-            grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between;
-            background: transparent; border: 1px dashed #555; padding: 8px 14px;
-        }
-        .sep-text { color: #ff9800; font-weight: 600; }
-        .drag-handle { color: #666; margin-right: 6px; font-size: 1.1rem; user-select: none; }
-        .drag-handle:hover { color: var(--primary); }
 
-        .site-main { display: flex; align-items: center; gap: 14px; min-width: 0; }
         .site-icon {
             width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0;
             background: #fff; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
         }
-        .site-text { min-width: 0; flex: 1; }
-        .site-label { font-size: 1rem; color: var(--accent); font-weight: 600; word-break: break-all; }
-        .site-href { font-size: 0.8rem; color: var(--text-secondary); word-break: break-all; }
+        .site-label {
+            font-size: 0.95rem; color: var(--accent); font-weight: 600; width: 100%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .site-href {
+            font-size: 0.75rem; color: var(--text-secondary); width: 100%;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
         .site-href a { color: inherit; }
-        .card-actions { display: flex; gap: 5px; flex-wrap: wrap; cursor: auto; }
+        .card-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; cursor: auto; }
 
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex;
@@ -176,13 +183,12 @@
         </header>
 
         <div class="notice-banner" id="notice">
-            請先按「選取 index.html」，選擇 <code>E:\script\github\nav\index.html</code>。之後每次新增、編輯、刪除、排序都會自動寫回該檔案，只會改動 <code>const sites = [ ... ];</code> 這一段。
+            請先按「選取 index.html」，選擇 <code>E:\script\github\nav\index.html</code>。之後每次新增、編輯、刪除、拖曳排序都會自動寫回該檔案，只會改動 <code>const sites = [ ... ];</code> 這一段；每排 6 個，<code>// 第N排</code> 註解會依實際位置自動產生。
         </div>
 
         <div class="toolbar">
             <div class="toolbar-group">
                 <button class="btn btn-primary" onclick="openEditModal(-1)" id="btnAdd" disabled>➕ 新增捷徑</button>
-                <button class="btn btn-secondary" onclick="openSepModal(-1)" id="btnAddSep" disabled>➕ 新增分隔註解</button>
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋名稱或網址..." oninput="renderItems()">
                 <span id="countBadge" style="font-size:0.85rem;color:var(--text-secondary);white-space:nowrap;"></span>
             </div>
@@ -228,25 +234,6 @@
         </div>
     </div>
 
-    <!-- 分隔註解 Modal -->
-    <div class="modal-overlay" id="sepModal">
-        <div class="modal-dialog">
-            <div class="modal-header">
-                <h2 id="sepModalTitle">新增分隔註解</h2>
-                <button class="close-btn" onclick="closeSepModal()">&times;</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="inputSep">註解文字</label>
-                <div class="form-hint">對應 index.html 中的 <code>// 第二排</code> 這類註解，僅供整理用，不影響頁面顯示。</div>
-                <input type="text" id="inputSep" class="form-input" placeholder="例如：第五排">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeSepModal()">取消</button>
-                <button class="btn btn-primary" onclick="submitSepForm()">確認儲存</button>
-            </div>
-        </div>
-    </div>
-
     <div class="toast" id="toast"></div>
 
     <script>
@@ -266,41 +253,47 @@
             return { bodyStart, bodyEnd: e.index };
         }
 
-        // 內容 → 項目陣列；物件為捷徑，// 註解為分隔
+        const PER_ROW = 6;
+
+        // 1 → 一、12 → 十二、25 → 二十五
+        function toChineseNum(n) {
+            const d = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+            if (n < 10) return d[n];
+            if (n < 20) return '十' + (n % 10 ? d[n % 10] : '');
+            if (n < 100) return d[Math.floor(n / 10)] + '十' + (n % 10 ? d[n % 10] : '');
+            return String(n);
+        }
+        const rowName = (r) => '第' + toChineseNum(r + 1) + '排';
+
+        // 內容 → 捷徑陣列（舊的 // 註解會略過，存檔時依實際位置重新產生）
         function parseBody(body) {
             const items = [];
-            const re = /\/\/([^\n]*)|\{[\s\S]*?\n[ \t]*\}/g;
+            const re = /\/\/[^\n]*|\{[\s\S]*?\n[ \t]*\}/g;
             let m;
             while ((m = re.exec(body)) !== null) {
-                if (m[0].startsWith('//')) {
-                    items.push({ type: 'sep', text: m[1].trim() });
-                } else {
-                    const obj = new Function('return (' + m[0] + ');')();
-                    const item = { type: 'site', label: String(obj.label ?? ''), href: String(obj.href ?? '') };
-                    if (obj.img !== undefined) item.img = String(obj.img);
-                    items.push(item);
-                }
+                if (m[0].startsWith('//')) continue;
+                const obj = new Function('return (' + m[0] + ');')();
+                const item = { label: String(obj.label ?? ''), href: String(obj.href ?? '') };
+                if (obj.img !== undefined) item.img = String(obj.img);
+                items.push(item);
             }
             return items;
         }
 
-        // 項目陣列 → 內容（沿用原檔的縮排與逗號風格）
+        // 捷徑陣列 → 內容（沿用原檔縮排與逗號風格，每 6 個加一行 // 第N排）
         function serializeBody(items) {
             const J = (s) => JSON.stringify(s);
-            let lastSite = -1;
-            items.forEach((it, i) => { if (it.type === 'site') lastSite = i; });
             const lines = [];
             items.forEach((it, i) => {
-                if (it.type === 'sep') {
+                if (i > 0 && i % PER_ROW === 0) {
                     lines.push('');
-                    lines.push(INDENT_ITEM + '// ' + it.text);
-                    return;
+                    lines.push(INDENT_ITEM + '// ' + rowName(i / PER_ROW));
                 }
                 lines.push(INDENT_ITEM + '{');
                 lines.push(INDENT_PROP + 'label: ' + J(it.label) + ',');
                 lines.push(INDENT_PROP + 'href: ' + J(it.href) + ',');
                 if (it.img !== undefined) lines.push(INDENT_PROP + 'img: ' + J(it.img) + ',');
-                lines.push(INDENT_ITEM + '}' + (i === lastSite ? '' : ','));
+                lines.push(INDENT_ITEM + '}' + (i === items.length - 1 ? '' : ','));
             });
             return '\n' + lines.join('\n');
         }
@@ -312,7 +305,6 @@
         let usesCRLF = false;
         let loaded = false;
         let currentEditIndex = -1;
-        let currentSepIndex = -1;
         let draggedIndex = null;
         let editImgHadValue = false;
 
@@ -377,16 +369,16 @@
             try {
                 const { bodyStart, bodyEnd } = locateBlock(text);
                 const parsed = parseBody(text.slice(bodyStart, bodyEnd).replace(/\r\n/g, '\n'));
-                if (!parsed.some(i => i.type === 'site')) throw new Error('解析不到任何捷徑，已取消載入');
+                if (!parsed.length) throw new Error('解析不到任何捷徑，已取消載入');
                 originalText = text;
                 usesCRLF = text.includes('\r\n');
                 items = parsed;
                 loaded = true;
                 setStatus('已連結：' + name, true);
-                ['btnSaveAll', 'btnAdd', 'btnAddSep', 'btnReload'].forEach(id => $(id).disabled = false);
+                ['btnSaveAll', 'btnAdd', 'btnReload'].forEach(id => $(id).disabled = false);
                 $('notice').style.display = 'none';
                 renderItems();
-                showToast('已載入 ' + items.filter(i => i.type === 'site').length + ' 個捷徑', 'success');
+                showToast('已載入 ' + items.length + ' 個捷徑', 'success');
             } catch (e) {
                 showToast('載入失敗：' + e.message, 'error');
             }
@@ -399,7 +391,7 @@
 
         async function saveAllChanges() {
             if (!loaded) return;
-            if (!items.some(i => i.type === 'site')) { showToast('捷徑清單為空，已取消儲存。', 'error'); return; }
+            if (!items.length) { showToast('捷徑清單為空，已取消儲存。', 'error'); return; }
             try {
                 // 儲存前重新讀檔，避免覆蓋掉 sites 以外、期間被手動修改的內容
                 let base = originalText;
@@ -439,10 +431,10 @@
             catch (e) { return ''; }
         }
 
-        function btn(cls, text, title, onclick, disabled) {
+        function btn(cls, text, title, onclick) {
             const b = document.createElement('button');
             b.className = 'btn ' + cls + ' btn-sm';
-            b.innerText = text; b.title = title; b.onclick = onclick; b.disabled = !!disabled;
+            b.innerText = text; b.title = title; b.onclick = onclick;
             return b;
         }
 
@@ -453,102 +445,87 @@
             let visible = 0;
 
             items.forEach((it, index) => {
-                if (kw) {
-                    if (it.type === 'sep') return;
-                    if (!it.label.toLowerCase().includes(kw) && !it.href.toLowerCase().includes(kw)) return;
+                if (kw && !it.label.toLowerCase().includes(kw) && !it.href.toLowerCase().includes(kw)) return;
+                visible++;
+
+                // 未搜尋時，每 6 個顯示一個排名稱（與 nav 實際畫面一致）
+                if (!kw && index % PER_ROW === 0) {
+                    const rh = document.createElement('div');
+                    rh.className = 'row-header';
+                    rh.innerText = rowName(index / PER_ROW);
+                    container.appendChild(rh);
                 }
-                if (it.type === 'site') visible++;
 
                 const card = document.createElement('div');
-                card.className = 'item-card' + (it.type === 'sep' ? ' sep' : '');
-                card.draggable = true;
+                card.className = 'item-card' + (kw ? ' no-drag' : '');
+                card.draggable = !kw;
+                card.title = kw ? '清除搜尋後才能拖曳排序' : '按住可拖曳調整順序';
 
-                card.addEventListener('dragstart', (e) => {
-                    draggedIndex = index;
-                    e.dataTransfer.effectAllowed = 'move';
-                    e.dataTransfer.setData('text/plain', String(index));
-                    setTimeout(() => card.classList.add('dragging'), 0);
-                });
-                card.addEventListener('dragover', (e) => {
-                    e.preventDefault();
-                    if (draggedIndex !== null && draggedIndex !== index) card.classList.add('drag-over');
-                });
-                card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-                card.addEventListener('drop', async (e) => {
-                    e.preventDefault();
-                    card.classList.remove('drag-over');
-                    if (draggedIndex !== null && draggedIndex !== index) {
-                        const moved = items.splice(draggedIndex, 1)[0];
-                        items.splice(index, 0, moved);
-                        renderItems();
-                        await saveAllChanges();
-                    }
-                });
-                card.addEventListener('dragend', () => {
-                    card.classList.remove('dragging');
-                    document.querySelectorAll('.item-card').forEach(c => c.classList.remove('drag-over'));
-                    draggedIndex = null;
-                });
+                if (!kw) {
+                    card.addEventListener('dragstart', (e) => {
+                        draggedIndex = index;
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(index));
+                        setTimeout(() => card.classList.add('dragging'), 0);
+                    });
+                    card.addEventListener('dragover', (e) => {
+                        e.preventDefault();
+                        if (draggedIndex !== null && draggedIndex !== index) card.classList.add('drag-over');
+                    });
+                    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+                    card.addEventListener('drop', async (e) => {
+                        e.preventDefault();
+                        card.classList.remove('drag-over');
+                        if (draggedIndex !== null && draggedIndex !== index) {
+                            const moved = items.splice(draggedIndex, 1)[0];
+                            items.splice(index, 0, moved);
+                            draggedIndex = null;
+                            renderItems();
+                            await saveAllChanges();
+                        }
+                    });
+                    card.addEventListener('dragend', () => {
+                        card.classList.remove('dragging');
+                        document.querySelectorAll('.item-card').forEach(c => c.classList.remove('drag-over'));
+                        draggedIndex = null;
+                    });
+                }
+
+                const img = document.createElement('img');
+                img.className = 'site-icon'; img.alt = '';
+                const fav = faviconOf(it.href);
+                img.src = it.img || fav;
+                img.onerror = () => { if (img.src !== fav) img.src = fav; };
+
+                const lb = document.createElement('div');
+                lb.className = 'site-label'; lb.innerText = it.label; lb.title = it.label;
+
+                const hr = document.createElement('div');
+                hr.className = 'site-href';
+                const a = document.createElement('a');
+                a.href = it.href; a.target = '_blank'; a.rel = 'noopener'; a.draggable = false;
+                a.innerText = it.href; a.title = it.href;
+                hr.appendChild(a);
 
                 const actions = document.createElement('div');
                 actions.className = 'card-actions';
-                actions.appendChild(btn('btn-secondary', '↑', '上移', () => moveItem(index, -1), index === 0));
-                actions.appendChild(btn('btn-secondary', '↓', '下移', () => moveItem(index, 1), index === items.length - 1));
-                actions.appendChild(btn('btn-primary', '編輯', '編輯', () => it.type === 'sep' ? openSepModal(index) : openEditModal(index)));
+                actions.appendChild(btn('btn-primary', '編輯', '編輯', () => openEditModal(index)));
                 actions.appendChild(btn('btn-danger', '刪除', '刪除', () => deleteItem(index)));
 
-                if (it.type === 'sep') {
-                    const t = document.createElement('div');
-                    const h = document.createElement('span');
-                    h.className = 'drag-handle'; h.innerText = '⠿';
-                    const s = document.createElement('span');
-                    s.className = 'sep-text'; s.innerText = '// ' + it.text;
-                    t.appendChild(h); t.appendChild(s);
-                    card.appendChild(t);
-                    card.appendChild(actions);
-                } else {
-                    const main = document.createElement('div');
-                    main.className = 'site-main';
-                    const h = document.createElement('span');
-                    h.className = 'drag-handle'; h.title = '按住可拖曳調整順序'; h.innerText = '⠿';
-                    const img = document.createElement('img');
-                    img.className = 'site-icon'; img.alt = '';
-                    const fav = faviconOf(it.href);
-                    img.src = it.img || fav;
-                    img.onerror = () => { if (img.src !== fav) img.src = fav; };
-                    const text = document.createElement('div');
-                    text.className = 'site-text';
-                    const lb = document.createElement('div');
-                    lb.className = 'site-label'; lb.innerText = it.label;
-                    const hr = document.createElement('div');
-                    hr.className = 'site-href';
-                    const a = document.createElement('a');
-                    a.href = it.href; a.target = '_blank'; a.rel = 'noopener'; a.innerText = it.href;
-                    hr.appendChild(a);
-                    text.appendChild(lb); text.appendChild(hr);
-                    main.appendChild(h); main.appendChild(img); main.appendChild(text);
-                    card.appendChild(main);
-                    card.appendChild(actions);
-                }
+                card.appendChild(img);
+                card.appendChild(lb);
+                card.appendChild(hr);
+                card.appendChild(actions);
                 container.appendChild(card);
             });
 
-            const total = items.filter(i => i.type === 'site').length;
-            $('countBadge').innerText = loaded ? `共 ${total} 個捷徑` + (kw ? ` (篩選出 ${visible} 個)` : '') : '';
-        }
-
-        async function moveItem(index, dir) {
-            const n = index + dir;
-            if (n < 0 || n >= items.length) return;
-            [items[index], items[n]] = [items[n], items[index]];
-            renderItems();
-            await saveAllChanges();
+            $('countBadge').innerText = loaded
+                ? `共 ${items.length} 個捷徑，${Math.ceil(items.length / PER_ROW)} 排` + (kw ? ` (篩選出 ${visible} 個)` : '')
+                : '';
         }
 
         async function deleteItem(index) {
-            const it = items[index];
-            const name = it.type === 'sep' ? '// ' + it.text : it.label;
-            if (confirm(`確定要刪除「${name}」嗎？`)) {
+            if (confirm(`確定要刪除「${items[index].label}」嗎？`)) {
                 items.splice(index, 1);
                 renderItems();
                 await saveAllChanges();
@@ -614,7 +591,7 @@
             if (!label) { alert('請輸入名稱！'); $('inputLabel').focus(); return; }
             try { new URL(href); } catch (e) { alert('請輸入完整網址（含 http:// 或 https://）！'); $('inputHref').focus(); return; }
 
-            const item = { type: 'site', label, href };
+            const item = { label, href };
             if (img || editImgHadValue) item.img = img;
 
             if (currentEditIndex >= 0) items[currentEditIndex] = item;
@@ -625,36 +602,10 @@
             await saveAllChanges();
         }
 
-        // ===== 分隔註解 Modal =====
-        function openSepModal(index) {
-            currentSepIndex = index;
-            $('sepModalTitle').innerText = index >= 0 ? '編輯分隔註解' : '新增分隔註解';
-            $('inputSep').value = index >= 0 ? items[index].text : '';
-            $('sepModal').classList.add('open');
-            setTimeout(() => $('inputSep').focus(), 50);
-        }
-
-        function closeSepModal() {
-            $('sepModal').classList.remove('open');
-            currentSepIndex = -1;
-        }
-
-        async function submitSepForm() {
-            const text = $('inputSep').value.trim().replace(/\s+/g, ' ');
-            if (!text) { alert('請輸入註解文字！'); return; }
-            if (currentSepIndex >= 0) items[currentSepIndex] = { type: 'sep', text };
-            else items.push({ type: 'sep', text });
-            closeSepModal();
-            renderItems();
-            await saveAllChanges();
-        }
-
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') { closeEditModal(); closeSepModal(); }
-            if (e.key === 'Enter' && e.target.classList.contains('form-input') && e.target.type === 'text') {
-                if ($('editModal').classList.contains('open')) submitEditForm();
-                else if ($('sepModal').classList.contains('open')) submitSepForm();
-            }
+            if (e.key === 'Escape') closeEditModal();
+            if (e.key === 'Enter' && e.target.classList.contains('form-input') && e.target.type === 'text'
+                && $('editModal').classList.contains('open')) submitEditForm();
         });
 
         function showToast(msg, type = 'info') {
