@@ -176,24 +176,15 @@
         <header class="header">
             <h1>Nav 捷徑管理員</h1>
             <div class="toolbar-group">
-                <span class="status-badge"><span class="status-dot" id="statusDot"></span><span id="statusText">尚未連結 index.html</span></span>
-                <button class="btn btn-secondary" id="btnConnect" onclick="connectFile()">📂 選取 index.html</button>
-                <button class="btn btn-success" id="btnSaveAll" onclick="saveAllChanges()" disabled>💾 儲存 index.html</button>
+                <button class="btn btn-success" id="btnSaveAll" onclick="saveAllChanges()">💾 儲存 sites.js</button>
             </div>
         </header>
 
-        <div class="notice-banner" id="notice">
-            請先按「選取 index.html」，選擇 <code>E:\script\github\nav\index.html</code>。之後每次新增、編輯、刪除、拖曳排序都會自動寫回該檔案，只會改動 <code>const sites = [ ... ];</code> 這一段；每排 6 個，<code>// 第N排</code> 註解會依實際位置自動產生。
-        </div>
-
         <div class="toolbar">
             <div class="toolbar-group">
-                <button class="btn btn-primary" onclick="openEditModal(-1)" id="btnAdd" disabled>➕ 新增捷徑</button>
+                <button class="btn btn-primary" onclick="openEditModal(-1)" id="btnAdd">➕ 新增捷徑</button>
                 <input type="text" id="searchInput" class="search-input" placeholder="🔍 搜尋名稱或網址..." oninput="renderItems()">
                 <span id="countBadge" style="font-size:0.85rem;color:var(--text-secondary);white-space:nowrap;"></span>
-            </div>
-            <div class="toolbar-group">
-                <button class="btn btn-secondary" onclick="reloadFile()" id="btnReload" disabled>🔄 重新載入</button>
             </div>
         </div>
 
@@ -236,23 +227,10 @@
 
     <div class="toast" id="toast"></div>
 
+    <script src="sites.js"></script>
     <script>
-        // ===== index.html 解析與產生 =====
-        const INDENT_ITEM = ' '.repeat(12);
-        const INDENT_PROP = ' '.repeat(16);
-
-        // 找出 `const sites = [` 到對應 `];` 之間的內容範圍
-        function locateBlock(text) {
-            const m = /const\s+sites\s*=\s*\[/.exec(text);
-            if (!m) throw new Error('index.html 中找不到 const sites = [ ... ];');
-            const bodyStart = m.index + m[0].length;
-            const endRe = /\r?\n[ \t]*\];/g;
-            endRe.lastIndex = bodyStart - 1;
-            const e = endRe.exec(text);
-            if (!e) throw new Error('找不到 sites 陣列結尾的 ];');
-            return { bodyStart, bodyEnd: e.index };
-        }
-
+        // ===== 儲存目標：sites.js（與 manager.html 同資料夾） =====
+        const TARGET_NAME = 'sites.js';
         const PER_ROW = 6;
 
         // 1 → 一、12 → 十二、25 → 二十五
@@ -265,45 +243,35 @@
         }
         const rowName = (r) => '第' + toChineseNum(r + 1) + '排';
 
-        // 內容 → 捷徑陣列（舊的 // 註解會略過，存檔時依實際位置重新產生）
-        function parseBody(body) {
-            const items = [];
-            const re = /\/\/[^\n]*|\{[\s\S]*?\n[ \t]*\}/g;
-            let m;
-            while ((m = re.exec(body)) !== null) {
-                if (m[0].startsWith('//')) continue;
-                const obj = new Function('return (' + m[0] + ');')();
-                const item = { label: String(obj.label ?? ''), href: String(obj.href ?? '') };
-                if (obj.img !== undefined) item.img = String(obj.img);
-                items.push(item);
-            }
-            return items;
-        }
-
-        // 捷徑陣列 → 內容（沿用原檔縮排與逗號風格，每 6 個加一行 // 第N排）
-        function serializeBody(items) {
+        // 捷徑陣列 → sites.js 內容（每 6 個加一行 // 第N排 註解）
+        function buildSitesJs(list) {
             const J = (s) => JSON.stringify(s);
-            const lines = [];
-            items.forEach((it, i) => {
+            const lines = ['window.NAV_SITES = ['];
+            list.forEach((it, i) => {
                 if (i > 0 && i % PER_ROW === 0) {
                     lines.push('');
-                    lines.push(INDENT_ITEM + '// ' + rowName(i / PER_ROW));
+                    lines.push('    // ' + rowName(i / PER_ROW));
                 }
-                lines.push(INDENT_ITEM + '{');
-                lines.push(INDENT_PROP + 'label: ' + J(it.label) + ',');
-                lines.push(INDENT_PROP + 'href: ' + J(it.href) + ',');
-                if (it.img !== undefined) lines.push(INDENT_PROP + 'img: ' + J(it.img) + ',');
-                lines.push(INDENT_ITEM + '}' + (i === items.length - 1 ? '' : ','));
+                lines.push('    {');
+                lines.push('        label: ' + J(it.label) + ',');
+                lines.push('        href: ' + J(it.href) + ',');
+                if (it.img !== undefined) lines.push('        img: ' + J(it.img) + ',');
+                lines.push('    }' + (i === list.length - 1 ? '' : ','));
             });
-            return '\n' + lines.join('\n');
+            lines.push('];');
+            return lines.join('\n') + '\n';
         }
 
         // ===== 狀態 =====
-        let items = [];
+        let items = Array.isArray(window.NAV_SITES)
+            ? window.NAV_SITES.map(s => {
+                const it = { label: String(s.label ?? ''), href: String(s.href ?? '') };
+                if (s.img !== undefined) it.img = String(s.img);
+                return it;
+            })
+            : [];
+        const loaded = items.length > 0;
         let fileHandle = null;
-        let originalText = '';
-        let usesCRLF = false;
-        let loaded = false;
         let currentEditIndex = -1;
         let draggedIndex = null;
         let editImgHadValue = false;
@@ -312,117 +280,60 @@
 
         window.addEventListener('DOMContentLoaded', async () => {
             renderItems();
+            if (!loaded) {
+                showToast('sites.js 未載入；請勿儲存空清單。', 'error');
+                $('btnSaveAll').disabled = true;
+                $('btnAdd').disabled = true;
+                return;
+            }
             try {
-                const saved = await getHandleFromDB('navFileHandle');
-                if (saved && saved.name === 'index.html') {
-                    fileHandle = saved;
-                    if (saved.queryPermission && (await saved.queryPermission({ mode: 'readwrite' })) === 'granted') {
-                        await loadFromHandle();
-                    } else {
-                        setStatus('已記住檔案，請按「選取 index.html」授權', false);
-                    }
-                }
+                const saved = await getHandleFromDB('sitesFileHandle');
+                if (saved && saved.name === TARGET_NAME) fileHandle = saved;
             } catch (e) {
-                console.warn('無法還原檔案位置：', e);
+                console.warn('無法還原已記住的檔案位置：', e);
             }
         });
 
-        // ===== 檔案存取 =====
-        async function connectFile() {
-            try {
-                if ('showOpenFilePicker' in window) {
-                    if (fileHandle && fileHandle.requestPermission) {
-                        const p = await fileHandle.requestPermission({ mode: 'readwrite' });
-                        if (p === 'granted') { await loadFromHandle(); return; }
-                    }
-                    const [handle] = await window.showOpenFilePicker({
-                        id: 'nav_index_html',
-                        types: [{ description: 'HTML 檔案', accept: { 'text/html': ['.html'] } }]
-                    });
-                    const p = await handle.requestPermission({ mode: 'readwrite' });
-                    if (p !== 'granted') throw new Error('未取得讀寫權限');
-                    fileHandle = handle;
-                    await saveHandleToDB('navFileHandle', handle);
-                    await loadFromHandle();
-                } else {
-                    const input = document.createElement('input');
-                    input.type = 'file';
-                    input.accept = '.html';
-                    input.onchange = async () => {
-                        if (!input.files[0]) return;
-                        applyText(await input.files[0].text(), input.files[0].name);
-                        showToast('瀏覽器不支援直接寫入，儲存時會下載 index.html', 'info');
-                    };
-                    input.click();
-                }
-            } catch (e) {
-                if (e.name !== 'AbortError') showToast('開啟失敗：' + e.message, 'error');
-            }
-        }
-
-        async function loadFromHandle() {
-            const file = await fileHandle.getFile();
-            applyText(await file.text(), file.name);
-        }
-
-        function applyText(text, name) {
-            try {
-                const { bodyStart, bodyEnd } = locateBlock(text);
-                const parsed = parseBody(text.slice(bodyStart, bodyEnd).replace(/\r\n/g, '\n'));
-                if (!parsed.length) throw new Error('解析不到任何捷徑，已取消載入');
-                originalText = text;
-                usesCRLF = text.includes('\r\n');
-                items = parsed;
-                loaded = true;
-                setStatus('已連結：' + name, true);
-                ['btnSaveAll', 'btnAdd', 'btnReload'].forEach(id => $(id).disabled = false);
-                $('notice').style.display = 'none';
-                renderItems();
-                showToast('已載入 ' + items.length + ' 個捷徑', 'success');
-            } catch (e) {
-                showToast('載入失敗：' + e.message, 'error');
-            }
-        }
-
-        async function reloadFile() {
-            if (!fileHandle) { connectFile(); return; }
-            try { await loadFromHandle(); } catch (e) { showToast('重新載入失敗：' + e.message, 'error'); }
-        }
-
+        // ===== 儲存 =====
         async function saveAllChanges() {
-            if (!loaded) return;
             if (!items.length) { showToast('捷徑清單為空，已取消儲存。', 'error'); return; }
+            const source = buildSitesJs(items);
             try {
-                // 儲存前重新讀檔，避免覆蓋掉 sites 以外、期間被手動修改的內容
-                let base = originalText;
-                if (fileHandle) base = await (await fileHandle.getFile()).text();
-                const { bodyStart, bodyEnd } = locateBlock(base);
-                let body = serializeBody(items);
-                if (base.includes('\r\n')) body = body.replace(/\n/g, '\r\n');
-                const out = base.slice(0, bodyStart) + body + base.slice(bodyEnd);
-
                 if (fileHandle) {
-                    const w = await fileHandle.createWritable();
-                    await w.write(out);
-                    await w.close();
-                    originalText = out;
-                    showToast('已儲存 index.html', 'success');
-                } else {
-                    const blob = new Blob([out], { type: 'text/html;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url; a.download = 'index.html'; a.click();
-                    setTimeout(() => URL.revokeObjectURL(url), 2000);
-                    showToast('已下載 index.html，請放回 nav 資料夾覆蓋原檔。', 'success');
+                    if (fileHandle.queryPermission && (await fileHandle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
+                        const p = await fileHandle.requestPermission({ mode: 'readwrite' });
+                        if (p !== 'granted') throw new Error('未取得寫入權限');
+                    }
+                    await writeTo(fileHandle, source);
+                    return;
                 }
+                if ('showSaveFilePicker' in window) {
+                    const handle = await window.showSaveFilePicker({
+                        id: 'nav_sites_js', suggestedName: TARGET_NAME,
+                        types: [{ description: 'JavaScript 檔案', accept: { 'text/javascript': ['.js'] } }]
+                    });
+                    if (handle.name !== TARGET_NAME) throw new Error('請選擇 nav 資料夾中的 sites.js');
+                    fileHandle = handle;
+                    await saveHandleToDB('sitesFileHandle', handle);
+                    await writeTo(handle, source);
+                    return;
+                }
+                const blob = new Blob([source], { type: 'text/javascript;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = TARGET_NAME; a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                showToast('已下載 sites.js，請放回 nav 資料夾覆蓋原檔。', 'success');
             } catch (e) {
-                showToast('儲存失敗：' + e.message, 'error');
+                if (e.name !== 'AbortError') showToast('儲存失敗：' + e.message, 'error');
             }
         }
 
-        function setStatus(text, on) {
-            $('statusText').innerText = text;
-            $('statusDot').className = 'status-dot' + (on ? ' on' : '');
+        async function writeTo(handle, source) {
+            const w = await handle.createWritable();
+            await w.write(source);
+            await w.close();
+            showToast('已儲存 sites.js', 'success');
         }
 
         // ===== 渲染 =====
@@ -616,10 +527,10 @@
             window._toastTimer = setTimeout(() => { t.className = 'toast'; }, 3000);
         }
 
-        // ===== IndexedDB：記住 index.html 的檔案位置 =====
+        // ===== IndexedDB：記住 sites.js 的檔案位置，避免每次儲存都重新選擇 =====
         function getDB() {
             return new Promise((resolve, reject) => {
-                const req = indexedDB.open('NavPathDB', 1);
+                const req = indexedDB.open('NavSitesDB', 1);
                 req.onupgradeneeded = (e) => { e.target.result.createObjectStore('handles'); };
                 req.onsuccess = () => resolve(req.result);
                 req.onerror = () => reject(req.error);
