@@ -101,7 +101,7 @@ window.NAV_SITES = [
     },
     {
         label: "文字差異",
-        href: "https://www.diffchecker.com/zh-Hant/text-compare/",
+        href: "http://icps0610.github.io/diff",
         img: "",
     },
     {
