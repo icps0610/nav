@@ -105,9 +105,9 @@ window.NAV_SITES = [
         img: "",
     },
     {
-        label: "美化JSON",
-        href: "https://icps0610.github.io/beautyJson/",
-        img: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+CiAgPHJlY3QgeD0iNCIgeT0iNCIgd2lkdGg9IjU2IiBoZWlnaHQ9IjU2IiByeD0iMTAiIHJ5PSIxMCIgZmlsbD0iIzRmYWNmZSIgLz4KICA8dGV4dCB4PSIzMiIgeT0iNDIiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iMzAiIGZpbGw9IndoaXRlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXdlaWdodD0iYm9sZCI+e308L3RleHQ+Cjwvc3ZnPg==",
+        label: "去識別化",
+        href: "https://icps0610.github.io/anonymizer",
+        img: "",
     },
     {
         label: "holiday",
