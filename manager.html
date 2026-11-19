@@ -271,6 +271,7 @@
             })
             : [];
         const loaded = items.length > 0;
+        let baselineKey = dataKey(items);   // 本頁載入時（或上次儲存後）sites.js 的資料指紋
         let fileHandle = null;
         let currentEditIndex = -1;
         let draggedIndex = null;
@@ -329,11 +330,38 @@
             }
         }
 
+        // 寫入前檢查：檔案內容若已和本頁載入時不同（被外部修改），停止寫入，避免舊資料覆蓋新檔案
         async function writeTo(handle, source) {
+            const current = await (await handle.getFile()).text();
+            if (current.trim() && dataKey(parseSitesJs(current)) !== baselineKey) {
+                showToast('sites.js 已被外部修改，已取消儲存', 'error');
+                if (confirm('sites.js 在本頁開啟後已被其他程式修改。\n為避免覆蓋，本次未儲存。\n\n要重新載入最新的 sites.js 嗎？（本頁尚未儲存的修改會遺失）')) {
+                    location.reload();
+                }
+                return;
+            }
             const w = await handle.createWritable();
             await w.write(source);
             await w.close();
+            baselineKey = dataKey(items);
             showToast('已儲存 sites.js', 'success');
+        }
+
+        function parseSitesJs(text) {
+            try {
+                const w = {};
+                new Function('window', text)(w);
+                return Array.isArray(w.NAV_SITES) ? w.NAV_SITES : null;
+            } catch (e) {
+                console.warn('sites.js 解析失敗：', e);
+                return null;
+            }
+        }
+
+        // 只比較資料內容，不受換行字元（CRLF/LF）或排版影響
+        function dataKey(list) {
+            if (!Array.isArray(list)) return 'INVALID';
+            return JSON.stringify(list.map(s => [String(s.label ?? ''), String(s.href ?? ''), s.img === undefined ? null : String(s.img)]));
         }
 
         // ===== 渲染 =====
